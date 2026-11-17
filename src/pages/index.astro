@@ -60,7 +60,8 @@ const avatar = `https://github.com/${encodeURIComponent(githubLogin)}.png?size=1
     </Band>
 
     <Band i={2} class="relative px-3 pt-4 pb-6 max-sm:px-4" aria-label="About" id="about">
-      <div class="flex flex-col gap-4 font-sans text-base leading-[26px] text-body">
+      <!-- About 80 characters a line: the column is wider than a comfortable line of prose. -->
+      <div class="flex max-w-[44rem] flex-col gap-4 font-sans text-base leading-[26px] text-body">
         {site.about.map((paragraph) => <p>{paragraph}</p>)}
       </div>
 

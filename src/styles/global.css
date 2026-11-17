@@ -212,7 +212,7 @@ body {
   outline-offset: 3px;
 }
 
-/* ---------- layout: dashed full-bleed rules + a dashed-railed 690px column (rinkitadhana.com) ---------- */
+/* ---------- layout: dashed full-bleed rules + a dashed-railed 880px column (rinkitadhana.com) ---------- */
 
 .band {
   background: repeating-linear-gradient(to right, var(--edge) 0 6px, transparent 6px 14px) left bottom / 100% 1px no-repeat;
@@ -221,7 +221,7 @@ body {
 
 .rail {
   width: 100%;
-  max-width: 690px;
+  max-width: 880px;
   margin-inline: auto;
   background:
     repeating-linear-gradient(var(--edge) 0 6px, transparent 6px 14px) left top / 1px 100% no-repeat,
