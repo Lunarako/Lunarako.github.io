@@ -1,8 +1,8 @@
 import { Cloud, CloudDrizzle, CloudFog, CloudLightning, CloudRain, CloudSnow, type LucideIcon, Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
-import { isStale, type Weather, type WeatherKind } from "@/lib/weather";
+import { isStale, parseWeather, type Place, type Weather, type WeatherKind, weatherUrl } from "@/lib/weather";
 
-/** Open-Meteo updates every 15 minutes, and /api/weather caches as long. */
+/** Open-Meteo updates every 15 minutes. */
 const REFRESH_MS = 15 * 60_000;
 
 const ICONS: Record<Exclude<WeatherKind, "clear">, LucideIcon> = {
@@ -15,29 +15,31 @@ const ICONS: Record<Exclude<WeatherKind, "clear">, LucideIcon> = {
   unknown: Cloud,
 };
 
-async function load(): Promise<Weather | null> {
+async function load(place: Place): Promise<Weather | null> {
   try {
-    const res = await fetch("/api/weather");
-    return res.ok ? ((await res.json()) as Weather) : null;
+    const res = await fetch(weatherUrl(place), { signal: AbortSignal.timeout(8000) });
+    return res.ok ? parseWeather(await res.json(), place.city) : null;
   } catch {
     return null;
   }
 }
 
 /**
- * The weather in Hangzhou: loaded after the page, then every 15 minutes while the tab is visible.
- * Null until it loads, when it fails, or when the reading is over two hours old.
+ * The weather at `place`, asked of Open-Meteo by the browser: loaded after the page, then every 15 minutes
+ * while the tab is visible. Null when there is no place, until it loads, when it fails, or when the reading is
+ * over two hours old.
  */
-export function useWeather(): Weather | null {
+export function useWeather(place: Place | undefined): Weather | null {
   const [weather, setWeather] = useState<Weather | null>(null);
 
   useEffect(() => {
+    if (!place) return; // no place set: no live weather
     let alive = true;
     let last = 0;
     const refresh = async () => {
       if (document.hidden) return;
       last = Date.now();
-      const next = await load();
+      const next = await load(place);
       if (alive) setWeather(next);
     };
     // Back on a tab that missed a refresh: catch up at once.
@@ -52,7 +54,7 @@ export function useWeather(): Weather | null {
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", onShow);
     };
-  }, []);
+  }, [place?.latitude, place?.longitude, place?.city]);
 
   return weather && !isStale(weather.observedAt, new Date()) ? weather : null;
 }

@@ -21,14 +21,18 @@ export function useHostClock(timeZone: string) {
   return current < 0 ? "--:--" : formatClock(new Date(current * 60_000), timeZone);
 }
 
-export function HostClock({ timeZone, city }: { timeZone: string; city: string }) {
+export function HostClock({ timeZone, city }: { timeZone: string; city?: string }) {
   const time = useHostClock(timeZone);
   return (
-    // A phone stacks the city under the time.
+    // A phone stacks the city under the time. Without a city, only the time shows.
     <span className="flex shrink-0 text-xs leading-4 text-body tabular-nums max-sm:flex-col max-sm:items-end">
       {time}
-      <span className="whitespace-pre max-sm:hidden"> · </span>
-      <span className="max-sm:text-mute">{city}</span>
+      {city && (
+        <>
+          <span className="whitespace-pre max-sm:hidden"> · </span>
+          <span className="max-sm:text-mute">{city}</span>
+        </>
+      )}
     </span>
   );
 }

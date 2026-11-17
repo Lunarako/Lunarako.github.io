@@ -1,51 +1,50 @@
-import { Eye, Heart } from "lucide-react";
+import { Heart } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { Counters } from "@/lib/counters";
 import { PX, POSES, spriteSvg } from "@/lib/meiqiu";
 import { mountMeiqiu } from "./meiqiu-engine";
 
-declare global {
-  interface Window {
-    /** Set by Base.astro: the page-view POST, which answers with both totals. */
-    __glyphCounts?: Promise<Counters | null>;
-  }
-}
-
-// Drawn on the server so the cat is already asleep before the island wakes up.
+// Drawn at build time so the cat is already asleep before the island wakes up.
 const SLEEPING = spriteSvg([POSES.sleep.frames[0]]);
-const MAX_BATCH = 50; // CounterInput's limit
 const fmt = (n: number | undefined) => (n === undefined ? "--" : n.toLocaleString("en-US"));
 
-function post(body: object) {
-  return fetch("/api/counters", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  }).then((r) => (r.ok ? (r.json() as Promise<Counters>) : null));
+// A static site has no server to keep a total, so each visitor's pets are kept in their own browser.
+const PETS_KEY = "meiqiu-pets";
+function readPets(): number {
+  try {
+    const n = Number(localStorage.getItem(PETS_KEY));
+    return Number.isSafeInteger(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+function savePets(n: number) {
+  try {
+    localStorage.setItem(PETS_KEY, String(n));
+  } catch {
+    // Private mode or storage full: the count still shows on this page.
+  }
 }
 
 type Props = { year: number; owner: string; repo: string };
 
-/** The footer: Meiqiu and its yarn ball, then the copyright, the site totals and the source. */
+/** The footer: Meiqiu and its yarn ball, then the copyright, your pets and the source. */
 export function Meiqiu({ year, owner, repo }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const heart = useRef<HTMLSpanElement>(null);
-  const pending = useRef(0); // pets not yet sent
-  const [counts, setCounts] = useState<Counters>();
-
-  // Totals from the server, plus the pets still on their way.
-  const take = (c: Counters | null) => {
-    if (c) setCounts({ ...c, pets: c.pets + pending.current });
-  };
+  const [pets, setPets] = useState<number>();
 
   useEffect(() => {
+    setPets(readPets());
     const area = root.current;
     const s = stage.current;
     if (!area || !s) return;
     const onPet = () => {
-      pending.current++;
-      setCounts((c) => c && { ...c, pets: c.pets + 1 });
+      setPets((n) => {
+        const next = (n ?? readPets()) + 1;
+        savePets(next);
+        return next;
+      });
       const h = heart.current;
       if (h) {
         h.classList.remove("mq-beat");
@@ -54,35 +53,6 @@ export function Meiqiu({ year, owner, repo }: Props) {
       }
     };
     return mountMeiqiu({ area, stage: s, onPet });
-  }, []);
-
-  useEffect(() => {
-    (window.__glyphCounts ?? fetch("/api/counters").then((r) => (r.ok ? r.json() : null)))
-      .then(take)
-      .catch(() => {});
-
-    const flush = () => {
-      const by = Math.min(pending.current, MAX_BATCH);
-      if (!by) return;
-      pending.current -= by;
-      post({ name: "pets", by })
-        .then(take)
-        .catch(() => (pending.current += by)); // try again with the next batch
-    };
-    const timer = window.setInterval(flush, 2000);
-    // leaving: send what is left, even as the page unloads
-    const leave = () => {
-      const by = Math.min(pending.current, MAX_BATCH);
-      if (!by) return;
-      pending.current -= by;
-      navigator.sendBeacon("/api/counters", new Blob([JSON.stringify({ name: "pets", by })], { type: "application/json" }));
-    };
-    window.addEventListener("pagehide", leave);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("pagehide", leave);
-      leave();
-    };
   }, []);
 
   return (
@@ -100,17 +70,12 @@ export function Meiqiu({ year, owner, repo }: Props) {
           © {year} {owner}
         </span>
         <span className="mq-totals tabular-nums">
-          <span className="mq-total" title="Page views">
-            <Eye size={14} aria-hidden="true" />
-            <span className="sr-only">Page views</span>
-            <span data-testid="site-views">{fmt(counts?.views)}</span>
-          </span>
-          <span className="mq-total" title="Times Meiqiu was petted">
+          <span className="mq-total" title="Times you petted Meiqiu">
             <span ref={heart} className="mq-heart">
               <Heart size={14} aria-hidden="true" />
             </span>
-            <span className="sr-only">Times Meiqiu was petted</span>
-            <span data-testid="meiqiu-pets">{fmt(counts?.pets)}</span>
+            <span className="sr-only">Times you petted Meiqiu</span>
+            <span data-testid="meiqiu-pets">{fmt(pets)}</span>
           </span>
         </span>
         <a href={repo} className="mq-src" aria-label="Source on GitHub" title="Source on GitHub">

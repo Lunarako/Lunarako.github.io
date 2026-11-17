@@ -84,7 +84,7 @@ export function ProjectCard({ project, figure = false, children }: { project: Pr
                 {project.media ? (
                   <Media media={project.media} />
                 ) : project.art ? (
-                  <pre className="project-art text-[10px] leading-3 whitespace-pre text-dim max-sm:text-[11px] max-sm:leading-[14px]" aria-hidden>
+                  <pre className="project-art text-[12px] leading-4 whitespace-pre text-dim max-sm:text-[11px] max-sm:leading-[15px]" aria-hidden>
                     {project.art}
                   </pre>
                 ) : (

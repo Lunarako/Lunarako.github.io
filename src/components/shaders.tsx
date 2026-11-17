@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore } fro
 import { GardenBanner } from "@/components/garden-banner";
 import { WeatherReadout, useWeather } from "@/components/weather";
 import { bannerScene } from "@/lib/garden/sky";
+import type { Place } from "@/lib/weather";
 import { nextScene, SCENE_LABELS, type SceneName } from "@/lib/garden/themes";
 
 // Loaded after hydration so the WebGL bundle never delays the page becoming interactive.
@@ -54,7 +55,10 @@ function useIntroOver() {
   );
 }
 
-/** Page ground: a slow 8x8 dither, barely lighter than the background, seen in the side gutters. */
+/**
+ * Page ground: an 8x8 dither, barely lighter than the background, seen in the side gutters.
+ * It stands still: a moving full-screen WebGL layer costs GPU time on every frame for a change that is hard to see.
+ */
 export function BackgroundShader() {
   const mood = useShaderMood();
   // Starting WebGL blocks the main thread for a moment. During the intro that stalls the opening circle.
@@ -71,8 +75,7 @@ export function BackgroundShader() {
       type="8x8"
       size={2}
       scale={0.6}
-      // The E2E build draws one frame: CI renders WebGL in software, and a moving ground starves the timed tests.
-      speed={mood.still || import.meta.env.E2E_FIXTURES ? 0 : 0.15}
+      speed={0}
       maxPixelCount={1920 * 1080}
     />
     </Suspense>
@@ -87,13 +90,13 @@ function subscribeFestival(onChange: () => void) {
 const getFestival = () => document.documentElement.dataset.festival ?? null;
 
 /**
- * Top banner: 煤球's pixel garden under the sky of Hangzhou. A festival garden wins over the weather;
- * the theme saved in /admin shows only while there is no live weather. The switch in the soil cycles
+ * Top banner: 煤球's pixel garden under the sky of `place`. A festival garden wins over the weather;
+ * the `scene` prop shows only while there is no live weather. The switch in the soil cycles
  * the themes for testing: it changes this page only, and a reload follows the weather again.
  */
-export function BannerShader({ scene: saved = "clear" }: { scene?: SceneName }) {
+export function BannerShader({ scene: saved = "clear", place }: { scene?: SceneName; place?: Place }) {
   const mood = useShaderMood();
-  const weather = useWeather();
+  const weather = useWeather(place);
   const [picked, setPicked] = useState<SceneName | null>(null);
   const festival = useSyncExternalStore(subscribeFestival, getFestival, getServerSnapshot);
   if (!mood) return null;
@@ -155,7 +158,7 @@ function FitGarden({ theme, still, scene, windy }: { theme: "dark" | "light"; st
   );
 }
 
-/** A full-size garden scaled to fit its box, so the preview in /admin has the tree and fence of the real banner. */
+/** A full-size garden scaled to fit its box, with the tree and fence of the real banner. */
 export function BannerPreview({ scene }: { scene: SceneName }) {
   const mood = useShaderMood();
   return (

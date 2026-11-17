@@ -1,10 +1,8 @@
-// The home page content that /admin edits. Each section is one row in D1; a missing or stale row falls back to the
-// defaults in site.ts, so a fresh database still renders the full page.
-import { drizzle } from "drizzle-orm/d1";
+// The home page content. It all comes from src/lib/site.ts. The build checks it against the schemas below,
+// so a mistake in site.ts stops the build with a message that says what to fix.
 import { z } from "astro/zod";
-import { sections } from "../db/schema";
 import { SCENES } from "./garden/themes";
-import { isMediaKey } from "./media";
+import { isMediaKey, isVideoKey } from "./media";
 import { nowText, projects, site, skills, snapshots } from "./site";
 import { cleanSvg } from "./svg";
 
@@ -66,22 +64,17 @@ export const Profile = z.object({
   roles: lines("Roles", 40, 6, 1),
   email: z.email("The email address is not valid").max(120, "The email address is too long"),
   github: link("GitHub link"),
-  x: link("X link"),
+  /** Without it the home page shows no Twitter chip. */
+  x: optionalLink("X link"),
   /** Where "Book an intro call" goes (Cal.com or similar). Without it the home page shows no booking button. */
   booking: optionalLink("Booking link"),
   /** Shown on the Twitter hover card. X has no free API for them, so they are typed in /admin. */
   xFollowing: optionalCount("X following"),
   xFollowers: optionalCount("X followers"),
-  /** The Duolingo username: the streak on the mark in the intro comes from Duolingo. Without one there is no Duolingo mark. */
-  duolingo: optionalText(
-    z
-      .string()
-      .max(40, "The Duolingo username can be 40 characters at most")
-      .regex(/^[A-Za-z0-9._-]+$/, "The Duolingo username can only have letters, digits, dots, dashes and underscores"),
-  ),
   repo: link("Source repo link"),
-  city: text("City", 40),
-  country: text("Country", 40),
+  /** Optional: shown next to the clock. */
+  city: optionalText(z.string().max(40, "The city can be 40 characters at most")),
+  country: optionalText(z.string().max(40, "The country can be 40 characters at most")),
   timeZone: text("Time zone", 60).refine(isTimeZone, "This time zone does not exist. Enter an IANA time zone name, for example Asia/Shanghai"),
 });
 
@@ -96,16 +89,16 @@ const art = (label: string) =>
 const optionalArt = (label: string) =>
   z.preprocess((v) => (typeof v === "string" && !v.trim() ? undefined : v), art(label).optional());
 
-const isVideoKey = (key: string) => /\.(mp4|webm)$/.test(key);
-
-/** An uploaded image or video. The key must come from /api/admin/media; alt is read aloud in its place. */
+/** An image or video in public/. The key is its path inside public/; alt is read aloud in its place. */
 export const ProjectMedia = z
   .object({
-    key: z.string("Upload a file first").refine(isMediaKey, "The file does not exist. Upload it again"),
+    key: z
+      .string("Set the path of the file inside public/")
+      .refine(isMediaKey, "The media path must be a path inside public/, like projects/app.png, with an image or video extension"),
     kind: z.enum(["image", "video"], "Media must be an image or a video"),
     alt: text("Image/video description", 160),
   })
-  .refine((m) => (m.kind === "video") === isVideoKey(m.key), "The media type does not match the file. Upload it again");
+  .refine((m) => (m.kind === "video") === isVideoKey(m.key), "The media kind does not match the file extension. Use kind: \"video\" for .mp4 and .webm files");
 
 export const ProjectItem = z
   .object({
@@ -171,7 +164,6 @@ export const defaultContent: SiteContent = {
     github: site.github,
     x: site.x,
     booking: site.booking,
-    duolingo: site.duolingo,
     repo: site.repo,
     city: site.city,
     country: site.country,
@@ -184,30 +176,18 @@ export const defaultContent: SiteContent = {
   banner: { scene: "clear" },
 };
 
-export async function getContent(d1: D1Database): Promise<SiteContent> {
-  const rows = await drizzle(d1).select().from(sections);
-  const content = { ...defaultContent };
-  for (const row of rows) {
-    let data: unknown;
-    try {
-      data = JSON.parse(row.data);
-    } catch {
-      continue;
-    }
-    // A row written before a schema change may no longer fit: show the default rather than break the page.
-    const parsed = SectionInput.safeParse({ section: row.name, data });
-    if (parsed.success) Object.assign(content, { [parsed.data.section]: parsed.data.data });
+/**
+ * The content of src/lib/site.ts, checked and cleaned by the schemas (trimmed text, empty links dropped).
+ * Throws when a section does not fit, so the build stops and says which section and what to fix.
+ */
+export function getContent(source: SiteContent = defaultContent): SiteContent {
+  const content = { ...source };
+  for (const [section, data] of Object.entries(source)) {
+    const parsed = SectionInput.safeParse({ section, data });
+    if (!parsed.success) throw new Error(`src/lib/site.ts, section "${section}": ${describeError(parsed.error)}`);
+    Object.assign(content, { [parsed.data.section]: parsed.data.data });
   }
   return content;
-}
-
-/** Replaces one section. The input must already have passed SectionInput. */
-export async function saveSection(d1: D1Database, input: SectionInput) {
-  const row = { name: input.section, data: JSON.stringify(input.data), updatedAt: Date.now() };
-  await drizzle(d1)
-    .insert(sections)
-    .values(row)
-    .onConflictDoUpdate({ target: sections.name, set: { data: row.data, updatedAt: row.updatedAt } });
 }
 
 /** The first problem in a rejected input, in words the editor can act on. */
@@ -241,14 +221,12 @@ export function profileOf(href: string): { handle: string | null; label: string 
   return { handle, label: [host, ...path].join("/") };
 }
 
-export const duolingoLink = (username: string) => `https://www.duolingo.com/profile/${encodeURIComponent(username)}`;
-
-/** The full site record with the edited profile on top: handle, domain and url stay fixed. */
+/** The full site record with the checked profile on top. */
 export const siteWith = (profile: SiteContent["profile"]) => ({ ...site, ...profile });
 
 export type Social = { label: string; href: string; icon: "github" | "x" };
 
 export const socialsOf = (profile: SiteContent["profile"]): Social[] => [
   { label: "GitHub", href: profile.github, icon: "github" },
-  { label: "Twitter", href: profile.x, icon: "x" },
+  ...(profile.x ? [{ label: "Twitter", href: profile.x, icon: "x" as const }] : []),
 ];

@@ -1,7 +1,11 @@
 import { z } from "astro/zod";
 
 // Open-Meteo: no key, free for non-commercial use (10,000 calls a day). https://open-meteo.com/en/docs
-const HANGZHOU = { city: "Hangzhou", latitude: "30.27", longitude: "120.16" } as const;
+// The browser asks it directly (it allows cross-origin requests), so the static site needs no server.
+
+/** Where the weather is read. src/lib/site.ts sets yours (site.weather). */
+export type Place = { city: string; latitude: number; longitude: number };
+const DEFAULT_PLACE: Place = { city: "Hangzhou", latitude: 30.27, longitude: 120.16 };
 const CURRENT = [
   "temperature_2m",
   "apparent_temperature",
@@ -11,7 +15,7 @@ const CURRENT = [
   "wind_speed_10m",
 ] as const;
 
-/** Seconds the Worker keeps a response. Open-Meteo updates the current block every 15 minutes. */
+/** Seconds a response stays fresh. Open-Meteo updates the current block every 15 minutes. */
 export const WEATHER_CACHE_TTL = 900;
 
 export type WeatherKind = "clear" | "cloudy" | "fog" | "drizzle" | "rain" | "snow" | "thunder" | "unknown";
@@ -34,10 +38,10 @@ export interface Weather {
   kind: WeatherKind;
 }
 
-export function weatherUrl(): string {
+export function weatherUrl(place: Place = DEFAULT_PLACE): string {
   const params = new URLSearchParams({
-    latitude: HANGZHOU.latitude,
-    longitude: HANGZHOU.longitude,
+    latitude: String(place.latitude),
+    longitude: String(place.longitude),
     current: CURRENT.join(","),
     timezone: "Asia/Shanghai",
   });
@@ -94,12 +98,12 @@ const OpenMeteoBody = z.object({
 });
 
 /** The API response as the page shows it, or null when it does not have the expected shape. */
-export function parseWeather(body: unknown): Weather | null {
+export function parseWeather(body: unknown, city: string = DEFAULT_PLACE.city): Weather | null {
   const parsed = OpenMeteoBody.safeParse(body);
   if (!parsed.success) return null;
   const c = parsed.data.current;
   return {
-    city: HANGZHOU.city,
+    city,
     observedAt: c.time,
     temperature: Math.round(c.temperature_2m),
     feelsLike: Math.round(c.apparent_temperature),
@@ -113,8 +117,9 @@ export function parseWeather(body: unknown): Weather | null {
 
 // Caiyun: its realtime sky comes from weather radar, so it sees a shower that Open-Meteo's model misses.
 // Free plan: 1,000 calls a day. https://docs.caiyunapp.com/weather-api/
-export function caiyunUrl(token: string): string {
-  return `https://api.caiyunapp.com/v2.6/${encodeURIComponent(token)}/${HANGZHOU.longitude},${HANGZHOU.latitude}/realtime`;
+// Not used by the static site: a token in the browser would be public.
+export function caiyunUrl(token: string, place: Place = DEFAULT_PLACE): string {
+  return `https://api.caiyunapp.com/v2.6/${encodeURIComponent(token)}/${place.longitude},${place.latitude}/realtime`;
 }
 
 // Caiyun's skycon, with the nearest WMO code so `code` means the same for both sources.
@@ -172,13 +177,13 @@ function shanghaiTime(seconds: number): string {
 }
 
 /** Caiyun's response as the page shows it, or null when it failed or does not have the expected shape. */
-export function parseCaiyun(body: unknown): Weather | null {
+export function parseCaiyun(body: unknown, city: string = DEFAULT_PLACE.city): Weather | null {
   const parsed = CaiyunBody.safeParse(body);
   if (!parsed.success) return null;
   const r = parsed.data.result.realtime;
   const { condition, kind, code } = describeSkycon(r.skycon);
   return {
-    city: HANGZHOU.city,
+    city,
     observedAt: shanghaiTime(parsed.data.server_time),
     temperature: Math.round(r.temperature),
     feelsLike: Math.round(r.apparent_temperature),
@@ -207,7 +212,7 @@ async function ask(url: string, parse: (body: unknown) => Weather | null, fetche
 }
 
 /**
- * Current weather in Hangzhou, or null on any failure (network, HTTP error, bad body, timeout),
+ * Current weather at the default place, or null on any failure (network, HTTP error, bad body, timeout),
  * so the page can leave the block out. With a Caiyun token it asks Caiyun first and Open-Meteo
  * only when Caiyun fails. The endpoint passes the global fetch; tests pass a stub.
  */

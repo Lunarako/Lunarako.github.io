@@ -33,4 +33,6 @@ export function ritualFrame(id: GardenRitual, elapsed: number) {
   return frame < 0 ? null : frame;
 }
 
-export const ritualArt = (id: GardenRitual) => `/sprites/meiqiu/${id}.svg`;
+/** The sprite strip in public/sprites/meiqiu, under the site's base path ("/" or "/<repo>/"). */
+export const ritualArt = (id: GardenRitual, base: string = import.meta.env.BASE_URL ?? "/") =>
+  `${base.replace(/\/?$/, "/")}sprites/meiqiu/${id}.svg`;

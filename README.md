@@ -1,63 +1,69 @@
 <div align="center">
 
-# glyph
+# glyph (GitHub Pages edition)
 
-An ASCII-style personal site with a pixel garden that follows the real sky.
+An ASCII-style personal site. A pixel garden at the top changes with the real sky.
 
-[**franvy.cc**](https://franvy.cc) · [Run locally](#run-locally) · [Deploy your own](#deploy-your-own)
-
-**English** · [简体中文](README.zh-CN.md)
-
-<img src=".github/assets/screenshot.png" alt="The glyph home page: a pixel garden at night above the intro, the links and a contribution calendar" width="720">
+[English](README.md) · [简体中文](README.zh-CN.md)
 
 </div>
 
-## Highlights
+This is a static fork of [glyph by franvy](https://github.com/Franvy/glyph). The original runs on a Cloudflare Worker
+with a database. This edition builds to plain HTML, so GitHub Pages can host it for free.
 
-- **A live banner.** The garden shows the local time, the moon phase and the current weather in Shanghai.
-- **Festival themes.** On Chinese festivals, such as Spring Festival and Mid-Autumn, the page gets a new theme.
-- **Isometric project figures.** Each project is a small animated machine, drawn by the scripts in `figures/`.
-- **Meiqiu (煤球).** A pixel cat lives in the footer. Pet it. The site counts every pet.
-- **Readable by agents.** [`/index.md`](https://franvy.cc/index.md) serves the home page as Markdown.
-- **Its own editor.** `/admin` edits the home page. Cloudflare Access protects it.
+## What it has
 
-## Stack
+- **A banner that changes.** The pixel garden follows the phase of the moon, the Chinese festivals and, if you set a
+  city, its live weather. The dark theme shows the night garden, the light theme the day garden.
+- **A cat.** Meiqiu walks in the garden and in the footer. Hover or tap to pet it.
+- **Your GitHub data.** The avatar and the contribution calendar come from your GitHub account.
+- **Agent-friendly.** `/index.md` gives the home page as Markdown.
 
-[Astro](https://astro.build) 7 and TypeScript on one [Cloudflare Worker](https://developers.cloudflare.com/workers/).
-D1 (with Drizzle) holds the content and the counters. R2 holds the uploaded media.
-Tailwind CSS v4 for styles, React only for the interactive islands.
-Vitest and Playwright for tests.
+## What is different from the original
 
-## Run locally
+| Original | This edition |
+|---|---|
+| Content in a database, edited in `/admin` | Content in `src/lib/site.ts` |
+| Weather from Caiyun or Open-Meteo, through the Worker | Weather from Open-Meteo, asked by the browser |
+| Contribution calendar refreshed by the Worker | Contribution calendar read at build time; the site builds again every day |
+| Page views and pets counted for all visitors | No page views; each visitor sees their own pets |
+| Project drawings (isometric machines) and Duolingo streak | Removed: they showed the original author's projects and account |
 
-You need Node.js 24 and pnpm (`corepack enable` gets the pinned version).
+## Make it yours
+
+1. Create a repository named `<your-username>.github.io`. Push this code to its `main` branch.
+2. Edit `src/lib/site.ts`: your GitHub username, name, email, about text, projects and skills.
+   The city and the live weather are optional. Without them the page shows no place.
+3. In the repository, open **Settings > Pages**. Set **Source** to **GitHub Actions**.
+4. Push to `main`. The workflow `.github/workflows/deploy.yml` checks, builds and publishes the site.
+   Your site is at `https://<your-username>.github.io`.
+
+A repository with another name also works. The site is then at `https://<your-username>.github.io/<repo>`.
+Change `repo` in `src/lib/site.ts` to match.
+
+If the contribution calendar stays empty, add a secret named `CONTRIBUTIONS_TOKEN` in
+**Settings > Secrets and variables > Actions**. A fine-grained token with no permissions is enough.
+With your own token, private contributions count too.
+
+In a public repository, GitHub turns off a scheduled workflow after 60 days without activity. The calendar then stops
+updating until you push again or run the workflow by hand on the **Actions** tab.
+
+## Run it locally
+
+You need Node.js 24 and pnpm (`corepack enable` picks the version that the project pins).
 
 ```sh
-git clone https://github.com/Franvy/glyph.git && cd glyph
 pnpm install
-pnpm db:migrate:local   # create the local D1 tables
-pnpm dev                # http://localhost:4321
+pnpm dev        # http://localhost:4321
 ```
 
-The site runs without tokens. To get the live data, copy `.env.example` to `.dev.vars` and add
-`GITHUB_TOKEN` (contribution calendar) and `CAIYUN_TOKEN` (weather).
+To see your contribution calendar locally, copy `.env.example` to `.env` and set `GITHUB_TOKEN`.
 
-Before you open a pull request, run `pnpm check && pnpm test && pnpm e2e`.
-[`AGENTS.md`](AGENTS.md) holds the code, database and test rules.
-
-## Deploy your own
-
-1. Put your own content in `src/lib/site.ts`, and replace the images in `src/assets/`.
-2. Create the database and the bucket:
-   `pnpm dlx wrangler d1 create glyph-db` and `pnpm dlx wrangler r2 bucket create glyph-media`.
-3. In `wrangler.jsonc`, set your `database_id`, your domain and your Cloudflare Access values.
-   Set the same domain as `site` in `astro.config.mjs`.
-4. Add the tokens with `pnpm dlx wrangler secret put <NAME>`.
-5. Add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` to the GitHub repository secrets.
-   Each push to `main` then runs the checks, applies the migrations and deploys.
+Before you push, run `pnpm check && pnpm test`.
 
 ## License
 
-The code is under the [MIT License](LICENSE). The Paper Mono font is under the
-[SIL Open Font License](src/assets/fonts/PaperMono-OFL.txt).
-The avatar, the personal content and the third-party logos are not part of this license.
+The code is under the [MIT License](LICENSE). Keep the `LICENSE` file and its copyright line when you copy the code.
+The Paper Mono font is under the [SIL Open Font License](src/assets/fonts/PaperMono-OFL.txt).
+The original author's avatar, personal content and third-party logos are not part of the license and are not in
+this edition.

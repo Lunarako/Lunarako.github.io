@@ -29,6 +29,8 @@ const MAX_FIREFLIES = 12;
 const MAX_PRINTS = 40;
 /** Two bursts at most at one time. */
 const MAX_BURSTS = 2;
+/** The garden draws at most this many frames a second: pixel art at 3 px cells needs no more, and it halves the work. */
+const MAX_FPS = 30;
 /** A new scene comes in through an ordered dither: 8 steps, 50 ms each. */
 const FADE_STEPS = 8;
 const FADE_STEP = 0.05;
@@ -770,14 +772,16 @@ export function GardenBanner({ theme, still, scene = "clear", windy = false }: {
       return cleanup;
     }
 
-    // Only spend frames while the banner is on screen.
+    // Only spend frames while the banner is on screen, and at most MAX_FPS of them.
     let frame = 0;
     let prev = 0;
     const loop = (now: number) => {
+      frame = requestAnimationFrame(loop);
+      // A 60 Hz screen calls every 16.7 ms: skip every other call. The 2 ms slack keeps a 30 Hz rhythm from jitter.
+      if (prev && now - prev < 1000 / MAX_FPS - 2) return;
       tick(prev ? Math.min(now - prev, 100) / 1000 : 0);
       prev = now;
       render();
-      frame = requestAnimationFrame(loop);
     };
     let visible = false;
     const resume = () => {

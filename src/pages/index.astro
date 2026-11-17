@@ -1,59 +1,38 @@
 ---
-import { Image } from "astro:assets";
 import Calendar from "@lucide/astro/icons/calendar";
 import Mail from "@lucide/astro/icons/mail";
 import Band from "@/components/band.astro";
 import BrandIcon from "@/components/brand-icon.astro";
 import { HostClock } from "@/components/clock";
 import Contributions from "@/components/contributions.astro";
-import Mark from "@/components/mark.astro";
 import { Meiqiu } from "@/components/meiqiu";
 import { ProjectCard } from "@/components/project-card";
-import ProjectFigure from "@/components/project-figure.astro";
 import SectionHead from "@/components/section-head.astro";
 import SoundToggle from "@/components/sound-toggle.astro";
-import Streak from "@/components/streak.astro";
 import ThemeToggle from "@/components/theme-toggle.astro";
 import { BannerShader } from "@/components/shaders";
 import Base from "@/layouts/base.astro";
-import { env } from "cloudflare:workers";
-import { HOME_CACHE_TAG } from "@/lib/cache-tags";
-import { duolingoLink, getContent, siteWith, socialsOf } from "@/lib/content";
+import { getContent, siteWith, socialsOf } from "@/lib/content";
+import { githubLogin } from "@/lib/site";
 import { homeContributions } from "@/data/contributions";
-import { figureOf } from "@/data/figures";
-import { homeDuolingo } from "@/data/duolingo";
-// Pre-sized from avatar.png (360px): this page renders on demand, where the Cloudflare adapter's "compile" image
-// service only passes files through, so <Image /> cannot resize here.
-import avatar from "@/assets/images/avatar-160.webp";
-import duolingoLogo from "@/assets/logos/duolingo.svg";
-import limnsCc from "@/assets/logos/limns-cc.svg";
-import limnsDev from "@/assets/logos/limns-dev.svg";
 
-// On demand: the content comes from D1. Cached at the edge (astro.config.mjs): a minute fresh,
-// then served stale for a day while one background render replaces it, so a first visit is
-// answered without running the Worker. A save in /admin purges the `home` tag everywhere
-// (src/pages/api/admin/content.ts), so an edit still shows on the next load. Nothing here reads
-// the request — no cookie, no header — which is what makes one copy right for every visitor.
-export const prerender = false;
-Astro.cache.set({ maxAge: 60, swr: 60 * 60 * 24, tags: [HOME_CACHE_TAG] });
-
-const content = await getContent(env.DB);
+// Built once at deploy time. The content comes from src/lib/site.ts; the contribution calendar from GitHub.
+// The weather in the banner loads in the browser.
+const content = getContent();
 const site = siteWith(content.profile);
 const socials = socialsOf(content.profile);
 const { projects, skills } = content;
-const [contributions, duo] = await Promise.all([homeContributions(), homeDuolingo(site.duolingo)]);
-const duolingoHref = site.duolingo ? duolingoLink(site.duolingo) : null;
+const contributions = await homeContributions();
+// GitHub serves every user's avatar at this address.
+const avatar = `https://github.com/${encodeURIComponent(githubLogin)}.png?size=160`;
 ---
 
-<Base
-  title={site.name}
-  description="Full-stack developer and indie developer. Small, well-designed, practical products: limns.cc and limns.dev."
->
+<Base title={site.name} description={`${site.name}: ${site.headline}. ${site.about[0] ?? ""}`.slice(0, 160)}>
   <header class="band enter" style="--i: 0" id="top">
     <div class="rail p-3 max-sm:p-4">
       <!-- A phone keeps the 666:220 shape of the desktop banner (Paper: Home · v6 mobile 390). -->
       <div class="dot-field relative h-[220px] overflow-hidden max-sm:aspect-[666/220] max-sm:h-auto">
-        <BannerShader client:only="react" scene={content.banner.scene} />
+        <BannerShader client:only="react" scene={content.banner.scene} place={site.weather} />
       </div>
     </div>
   </header>
@@ -63,9 +42,8 @@ const duolingoHref = site.duolingo ? duolingoLink(site.duolingo) : null;
       <div class="flex justify-between gap-4">
         <div class="flex items-center gap-3">
           <div class="shrink-0 rounded-lg border-[1.5px] border-frame p-[3px]">
-            <div data-avatar-frame class="relative size-20 overflow-clip rounded-[5px] bg-[#18181b]">
-              <Image src={avatar} alt="A hand-painted Pikachu in the grass" width={160} height={160} class="avatar size-full object-cover" />
-              <Image src={avatar} alt="" width={160} height={160} class="avatar-spotlight absolute inset-0 size-full object-cover" />
+            <div class="relative size-20 overflow-clip rounded-[5px] bg-[#18181b]">
+              <img src={avatar} alt={`Avatar of ${site.name}`} width="160" height="160" class="avatar size-full object-cover" />
             </div>
           </div>
           <div class="flex flex-col justify-center self-end">
@@ -85,28 +63,7 @@ const duolingoHref = site.duolingo ? duolingoLink(site.duolingo) : null;
 
     <Band i={2} class="relative px-3 pt-4 pb-6 max-sm:px-4" aria-label="About" id="about">
       <div class="flex flex-col gap-4 font-sans text-base leading-[26px] text-body">
-        <p>
-          Hi, I’m {site.name}, a full-stack developer who also does a bit of UI/UX design. As an indie developer I’ve built two
-          products: <Mark href="#projects" logo={limnsCc}>limns.cc</Mark>, an AI platform that puts many models in one place,
-          and <Mark href="#projects" logo={limnsDev}>limns.dev</Mark>, a site for collecting design inspiration. I like small,
-          well-designed, practical products.
-        </p>
-        <p>
-          I build with React, Next.js and Java. I use Claude Code, an AI coding tool, and Paper, a design tool I really love. I’m
-          always learning English{
-            duolingoHref && (
-              <a
-                href={duolingoHref}
-                data-streak={duo ? "" : undefined}
-                aria-label={duo ? `Duolingo: ${duo.streak}-day streak` : "Duolingo"}
-                class="ml-1 inline-block align-[-2px]"
-              >
-                <img src={duolingoLogo.src} alt="" width="14" height="14" class="mark-icon block size-3.5" />
-              </a>
-            )
-          } (it’s still pretty bad). Feel free to{" "}
-          <a class="link whitespace-nowrap font-medium" href={`mailto:${site.email}`}>email me</a>, I’d love to chat.
-        </p>
+        {site.about.map((paragraph) => <p>{paragraph}</p>)}
       </div>
 
       <!-- On a phone both buttons only just fit on one row, and the font decides if they wrap. Each takes a full row. -->
@@ -136,42 +93,36 @@ const duolingoHref = site.duolingo ? duolingoLink(site.duolingo) : null;
           </span>
           Send an email
         </a>
-      </div>
-
-      <div class="py-[18px]">
-        <ul class="flex flex-wrap gap-[7px]">
-          {
-            socials.map((s) => (
-              <li>
-                <a href={s.href} class="chip flex items-center gap-1.5 bg-card px-2 py-1 text-[13px] leading-5 text-body">
-                  <BrandIcon name={s.icon} class="text-mute" />
-                  {s.label}
-                </a>
-              </li>
-            ))
-          }
-        </ul>
-      </div>
-
-      <div id="contributions" class="scroll-mt-6 pt-2.5 pb-6">
-        <Contributions year={contributions} />
-      </div>
-
-      {duo && <Streak streak={duo.streak} />}
-    </Band>
-
-    <SectionHead id="projects" title="Projects" i={3} />
-    <Band i={4} aria-labelledby="projects">
-      <ul class="grid grid-cols-2 max-sm:grid-cols-1">
         {
-          projects.map((project) => (
-            <ProjectCard client:visible project={project} figure={Boolean(figureOf(project.name))}>
-              <ProjectFigure project={project.name} />
-            </ProjectCard>
+          // The profile links sit in the same row as outlined buttons: with one or two links, a row of their own looks empty.
+          socials.map((s) => (
+            <a href={s.href} class="cta cta-secondary press flex items-center gap-1.5 px-2.5 py-1.5 text-sm leading-5 font-medium whitespace-nowrap max-sm:basis-full max-sm:justify-center max-sm:py-[9px]">
+              <BrandIcon name={s.icon} />
+              {s.label}
+            </a>
           ))
         }
-      </ul>
+      </div>
+
+      <div id="contributions" class="scroll-mt-6 pt-7 pb-6">
+        <Contributions year={contributions} />
+      </div>
     </Band>
+
+    {
+      projects.length > 0 && (
+        <>
+          <SectionHead id="projects" title="Projects" i={3} />
+          <Band i={4} aria-labelledby="projects">
+            <ul class="grid grid-cols-2 max-sm:grid-cols-1">
+              {projects.map((project) => (
+                <ProjectCard client:visible project={project} />
+              ))}
+            </ul>
+          </Band>
+        </>
+      )
+    }
 
     <SectionHead id="skills" title="Skills & Technologies" i={5} />
     <Band i={6} class="p-3 max-sm:p-4" aria-labelledby="skills">
@@ -195,19 +146,3 @@ const duolingoHref = site.duolingo ? duolingoLink(site.duolingo) : null;
     </div>
   </footer>
 </Base>
-
-<script>
-  const frame = document.querySelector<HTMLElement>("[data-avatar-frame]");
-
-  frame?.addEventListener("pointermove", (event) => {
-    if (event.pointerType === "touch") return;
-
-    const bounds = frame.getBoundingClientRect();
-    frame.style.setProperty("--spotlight-x", `${event.clientX - bounds.left}px`);
-    frame.style.setProperty("--spotlight-y", `${event.clientY - bounds.top}px`);
-    frame.setAttribute("data-spotlight", "");
-  });
-
-  frame?.addEventListener("pointerleave", () => frame.removeAttribute("data-spotlight"));
-  frame?.addEventListener("pointercancel", () => frame.removeAttribute("data-spotlight"));
-</script>

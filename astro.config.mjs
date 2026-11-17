@@ -1,57 +1,21 @@
 // @ts-check
-import cloudflare from "@astrojs/cloudflare";
-import { cacheCloudflare } from "@astrojs/cloudflare/cache";
 import react from "@astrojs/react";
 import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig, fontProviders } from "astro/config";
 
-// Pages are prerendered. Only routes with `export const prerender = false` run in the Worker.
+// A fully static site for GitHub Pages: every page is built to HTML at build time.
+// The deploy workflow (.github/workflows/deploy.yml) sets SITE_URL and BASE_PATH from the Pages settings.
+// - A user site (<user>.github.io) has the base "/".
+// - A project site (<user>.github.io/<repo>) has the base "/<repo>".
 export default defineConfig({
-  site: "https://franvy.cc",
-  // Images are optimised by sharp at build time; no Images binding, no KV-backed sessions.
-  adapter: cloudflare({ imageService: "compile" }),
-  session: false,
-  // Route caching on Cloudflare's Workers Cache, which answers in front of the Worker:
-  // a hit never runs it, never reads D1, and is shared by every colo through the tiered
-  // cache. Only routes that call `Astro.cache.set()` are stored; the adapter marks every
-  // other response `Cloudflare-CDN-Cache-Control: no-store`, so the APIs and /admin stay
-  // live. See src/pages/index.astro and src/pages/api/admin/content.ts.
-  cache: { provider: cacheCloudflare() },
-  integrations: [react(), sitemap({ filter: (page) => !new URL(page).pathname.startsWith("/admin") })],
+  site: process.env.SITE_URL || "https://example.github.io",
+  base: process.env.BASE_PATH || "/",
+  integrations: [react(), sitemap()],
   vite: {
     plugins: [tailwindcss()],
-    // The E2E build (E2E_FIXTURES=1) draws sample contribution counts instead of asking GitHub,
-    // and holds the page ground still.
+    // E2E_FIXTURES=1 draws sample contribution counts instead of asking GitHub, and holds the page ground still.
     define: { "import.meta.env.E2E_FIXTURES": JSON.stringify(process.env.E2E_FIXTURES === "1") },
-    // The dev dependency scan crawls test/cf-env.ts, which imports wrangler (Node-only) for the tests.
-    // Pre-bundling it for workerd fails, so keep it out.
-    optimizeDeps: { exclude: ["wrangler"] },
-    environments: {
-      ssr: {
-        // Only on-demand routes (api/*, index.md) import these, so the startup scan misses them.
-        // A late re-optimize in workerd then points at deps_ssr files that never get written.
-        // The same late re-optimize also splits React: islands keep the raw react cjs while
-        // react-dom/server comes from the new deps_ssr bundle ("Invalid hook call").
-        // So pre-bundle the whole React stack up front, and keep @lucide/astro (plain ESM .ts)
-        // out of pre-bundling, so a new icon import never starts a re-optimize.
-        optimizeDeps: {
-          include: [
-            "drizzle-orm",
-            "drizzle-orm/d1",
-            "drizzle-orm/sqlite-core",
-            "react",
-            "react/jsx-runtime",
-            "react/jsx-dev-runtime",
-            "react-dom",
-            "react-dom/server",
-            "lucide-react",
-            "@paper-design/shaders-react",
-          ],
-          exclude: ["@lucide/astro"],
-        },
-      },
-    },
   },
   fonts: [
     {

@@ -1,36 +1,22 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { db, proxy } from "../../test/cf-env";
-import { defaultContent, duolingoLink, getContent, profileOf, projectLink, saveSection, SectionInput, socialsOf } from "./content";
+import { describe, expect, it } from "vitest";
+import { defaultContent, getContent, profileOf, projectLink, SectionInput, socialsOf } from "./content";
 
-afterAll(() => proxy.dispose());
-
-beforeEach(async () => {
-  await db.prepare("DELETE FROM sections").run();
-});
-
-const KEY = `${"a".repeat(64)}.png`;
+const KEY = "projects/boardui.png";
 const RUST = `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true" focusable="false"><path d="M0 0h24v24H0z"/></svg>`;
 const project = {
   name: "BoardUI",
   status: "live" as const,
   description: "Dashboard kit.",
   site: "https://example.com/boardui",
-  github: "https://github.com/franvy/boardui",
+  github: "https://github.com/example/boardui",
   shot: "Dashboard",
   media: { key: KEY, kind: "image" as const, alt: "The BoardUI dashboard" },
 };
 
-describe("site content", () => {
-  it("falls back to the defaults while nothing is saved", async () => {
-    expect(await getContent(db)).toEqual(defaultContent);
-  });
-
-  it("returns a saved section and keeps the others at their defaults", async () => {
-    await saveSection(db, { section: "skills", data: [{ name: "Astro" }, { name: "Rust", svg: RUST }] });
-    const content = await getContent(db);
-    expect(content.skills).toEqual([{ name: "Astro" }, { name: "Rust", svg: RUST }]);
-    expect(content.projects).toEqual(defaultContent.projects);
-    expect(content.profile).toEqual(defaultContent.profile);
+describe("getContent", () => {
+  it("passes the content of site.ts through the schemas", () => {
+    expect(() => getContent()).not.toThrow();
+    expect(getContent().profile.name).toBe(defaultContent.profile.name);
   });
 
   it("accepts the three stages: live, beta and dev", () => {
@@ -39,58 +25,18 @@ describe("site content", () => {
     }
   });
 
-  it("reads a project saved as oss (the old status) as live, and keeps the saved projects", async () => {
-    await db
-      .prepare("INSERT INTO sections (name, data, updated_at) VALUES ('projects', ?, 0)")
-      .bind(JSON.stringify([{ ...project, status: "oss" }]))
-      .run();
-    expect((await getContent(db)).projects).toEqual([{ ...project, status: "live" }]);
-  });
-
-  it("replaces a section on the next save", async () => {
-    await saveSection(db, { section: "now", data: ["one"] });
-    await saveSection(db, { section: "now", data: ["two", "three"] });
-    expect((await getContent(db)).now).toEqual(["two", "three"]);
-  });
-
-  it("saves the profile, projects and snapshots", async () => {
-    const profile = { ...defaultContent.profile, name: "Fran", headline: "Designer", city: "Hangzhou" };
-    await saveSection(db, { section: "profile", data: profile });
-    await saveSection(db, { section: "projects", data: [project] });
-    await saveSection(db, { section: "snapshots", data: [{ label: "01 · desk", art: "[ ]" }] });
-    const content = await getContent(db);
-    expect(content.profile).toEqual(profile);
+  it("cleans the content: trims text and reads the old oss status as live", () => {
+    const content = getContent({ ...defaultContent, projects: [{ ...project, name: " BoardUI ", status: "oss" as never }] });
     expect(content.projects).toEqual([project]);
-    expect(content.snapshots).toEqual([{ label: "01 · desk", art: "[ ]" }]);
   });
 
-  it("keeps the banner on the clear garden until a theme is picked", async () => {
-    expect((await getContent(db)).banner).toEqual({ scene: "clear" });
-    await saveSection(db, { section: "banner", data: { scene: "snow" } });
-    expect((await getContent(db)).banner).toEqual({ scene: "snow" });
-  });
-
-  it("uses the default when a stored section no longer matches its schema", async () => {
-    await db.prepare(`INSERT INTO sections (name, data, updated_at) VALUES ('skills', '[1, 2]', 0)`).run();
-    expect((await getContent(db)).skills).toEqual(defaultContent.skills);
-  });
-
-  it("refuses an unknown section in the table itself", async () => {
-    await expect(
-      db.prepare(`INSERT INTO sections (name, data, updated_at) VALUES ('posts', '[]', 0)`).run(),
-    ).rejects.toThrow(/CHECK/);
-  });
-
-  it("refuses data that is not JSON", async () => {
-    await expect(
-      db.prepare(`INSERT INTO sections (name, data, updated_at) VALUES ('now', 'not json', 0)`).run(),
-    ).rejects.toThrow(/CHECK/);
-  });
-
-  it("refuses a row without data", async () => {
-    await expect(
-      db.prepare(`INSERT INTO sections (name, data, updated_at) VALUES ('now', NULL, 0)`).run(),
-    ).rejects.toThrow(/NOT NULL/);
+  it("stops with the section and the reason when site.ts has a mistake", () => {
+    expect(() => getContent({ ...defaultContent, profile: { ...defaultContent.profile, email: "not-an-email" } })).toThrow(
+      /section "profile": The email address is not valid/,
+    );
+    expect(() => getContent({ ...defaultContent, projects: [{ ...project, media: { ...project.media, key: "/abs.png" } }] })).toThrow(
+      /section "projects": Item 1: The media path/,
+    );
   });
 });
 
@@ -102,7 +48,7 @@ describe("SectionInput", () => {
       { section: "skills", data: [{ name: "Astro" }, { name: "Rust", svg: RUST }] },
       { section: "projects", data: [{ ...project, site: undefined }] },
       { section: "projects", data: [{ ...project, github: undefined, media: undefined }] },
-      { section: "projects", data: [{ ...project, media: { key: `${"b".repeat(64)}.mp4`, kind: "video", alt: "A demo of BoardUI" } }] },
+      { section: "projects", data: [{ ...project, media: { key: "projects/demo.mp4", kind: "video", alt: "A demo of BoardUI" } }] },
       { section: "now", data: [] },
       { section: "snapshots", data: [{ label: "a", art: "b" }] },
       ...["clear", "cloudy", "rain", "storm", "snow", "fog", "spring"].map((scene) => ({ section: "banner", data: { scene } })),
@@ -158,12 +104,6 @@ describe("SectionInput", () => {
     expect(old.data).not.toHaveProperty("redditTrophy");
   });
 
-  it("takes a Duolingo username, and an empty field means no Duolingo", () => {
-    const p = defaultContent.profile;
-    expect(SectionInput.parse({ section: "profile", data: { ...p, duolingo: " 001023.6354OwBA " } }).data).toMatchObject({ duolingo: "001023.6354OwBA" });
-    expect(SectionInput.parse({ section: "profile", data: { ...p, duolingo: "" } }).data).toMatchObject({ duolingo: undefined });
-  });
-
   it("drops the intro fan images that older saves still hold", () => {
     const peek = [{ key: KEY, kind: "image", alt: "The board" }];
     expect(SectionInput.parse({ section: "projects", data: [{ ...project, peek }] }).data).toEqual([project]);
@@ -192,21 +132,22 @@ describe("SectionInput", () => {
       { section: "projects", data: [{ ...project, site: undefined, github: undefined }] },
       { section: "projects", data: [{ ...project, site: "", github: "" }] },
       { section: "projects", data: [{ ...project, github: "javascript:alert(1)" }] },
-      { section: "projects", data: [{ ...project, media: { ...project.media, key: "x.png" } }] },
+      { section: "projects", data: [{ ...project, media: { ...project.media, key: "/x.png" } }] },
+      { section: "projects", data: [{ ...project, media: { ...project.media, key: "../x.png" } }] },
+      { section: "projects", data: [{ ...project, media: { ...project.media, key: "x.html" } }] },
+      { section: "projects", data: [{ ...project, media: { ...project.media, key: "x.mp4" } }] },
       { section: "projects", data: [{ ...project, media: { ...project.media, alt: "" } }] },
       { section: "projects", data: [{ ...project, media: { ...project.media, kind: "audio" } }] },
       { section: "profile", data: { ...p, name: "" } },
       { section: "profile", data: { ...p, email: "not-an-email" } },
       { section: "profile", data: { ...p, github: "javascript:alert(1)" } },
-      { section: "profile", data: { ...p, x: "ftp://x.com/franvy" } },
+      { section: "profile", data: { ...p, x: "ftp://x.com/example" } },
       { section: "profile", data: { ...p, booking: "javascript:alert(1)" } },
       { section: "profile", data: { ...p, timeZone: "Mars/Olympus" } },
       { section: "profile", data: { ...p, roles: [] } },
       { section: "profile", data: { ...p, xFollowers: -1 } },
       { section: "profile", data: { ...p, xFollowers: 1.5 } },
       { section: "profile", data: { ...p, xFollowing: "many" } },
-      { section: "profile", data: { ...p, duolingo: "../admin" } },
-      { section: "profile", data: { ...p, duolingo: "a b" } },
       { section: "projects", data: [{ ...project, status: "dead" }] },
       { section: "projects", data: [{ ...project, description: "x".repeat(201) }] },
       { section: "projects", data: Array.from({ length: 21 }, () => project) },
@@ -229,19 +170,18 @@ describe("projectLink", () => {
 });
 
 describe("socialsOf", () => {
+  const profile = { ...defaultContent.profile, github: "https://github.com/ada", x: "https://x.com/ada" };
+
   it("names the X profile Twitter and gives it the X mark", () => {
-    const profile = defaultContent.profile;
-    expect(socialsOf(profile)[1]).toEqual({ label: "Twitter", href: profile.x, icon: "x" });
+    expect(socialsOf(profile)[1]).toEqual({ label: "Twitter", href: "https://x.com/ada", icon: "x" });
   });
 
-  it("lists GitHub and Twitter only: email has its own button, Duolingo is a mark in the intro", () => {
-    expect(socialsOf(defaultContent.profile).map((s) => s.label)).toEqual(["GitHub", "Twitter"]);
+  it("lists GitHub and Twitter only: email has its own button", () => {
+    expect(socialsOf(profile).map((s) => s.label)).toEqual(["GitHub", "Twitter"]);
   });
-});
 
-describe("duolingoLink", () => {
-  it("links to the profile page of the username", () => {
-    expect(duolingoLink("001023.6354OwBA")).toBe("https://www.duolingo.com/profile/001023.6354OwBA");
+  it("leaves Twitter out when there is no X link", () => {
+    expect(socialsOf({ ...profile, x: undefined }).map((s) => s.label)).toEqual(["GitHub"]);
   });
 });
 
@@ -261,7 +201,7 @@ describe("profileOf", () => {
 });
 
 describe("skill icons", () => {
-  it("cleans pasted SVG code before it is saved, and says what is wrong when it cannot", () => {
+  it("cleans SVG code before the page uses it, and says what is wrong when it cannot", () => {
     const parsed = SectionInput.parse({
       section: "skills",
       data: [{ name: "Rust", svg: `<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><title>Rust</title><path d="M0 0h24v24H0z"/></svg>` }],
@@ -274,8 +214,8 @@ describe("skill icons", () => {
   });
 
   it("shows each default skill with the icon the home page renders", () => {
-    for (const name of ["Next.js", "React", "TypeScript", "Cloudflare", "Paper"]) {
-      expect(defaultContent.skills.find((s) => s.name === name)?.svg, name).toMatch(/^<svg viewBox=/);
+    for (const skill of defaultContent.skills.filter((s) => s.svg)) {
+      expect(skill.svg, skill.name).toMatch(/^<svg viewBox=/);
     }
   });
 });

@@ -8,20 +8,10 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro build && astro preview",
-    "deploy": "astro build && wrangler deploy",
     "check": "astro check",
-    "cf-typegen": "wrangler types",
-    "figures": "node figures/build.mjs",
-    "garden:covers": "node figures/garden-covers.mjs",
-    "garden:covers:zh": "node figures/garden-covers-zh.mjs",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply DB --local",
-    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
-    "test": "vitest run",
-    "e2e": "playwright test"
+    "test": "vitest run"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^14.4.6",
     "@astrojs/markdown-satteri": "^0.4.7",
     "@astrojs/react": "^7.1.4",
     "@astrojs/sitemap": "^3.7.4",
@@ -29,7 +19,6 @@
     "@paper-design/shaders-react": "0.0.81",
     "astro": "^7.4.8",
     "cuelume": "0.2.8",
-    "drizzle-orm": "^0.45.4",
     "lucide-react": "1.60.0",
     "lunar-typescript": "1.8.6",
     "react": "19.3.0",
@@ -37,16 +26,13 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
-    "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.19.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "drizzle-kit": "~0.31.11",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
-    "vitest": "^5.0.5",
-    "wrangler": "^4.156.1"
+    "vitest": "^5.0.5"
   },
   "packageManager": "pnpm@11.1.2"
 }

@@ -1,0 +1,55 @@
+name: deploy
+
+# Builds the static site and publishes it on GitHub Pages.
+# - Every push to main deploys.
+# - Once a day the site is built again, so the contribution calendar stays current.
+# - "Run workflow" on the Actions tab deploys by hand.
+# Before the first run: open Settings > Pages and set "Source" to "GitHub Actions".
+on:
+  push: { branches: [main] }
+  schedule:
+    - cron: "17 0 * * *" # 00:17 UTC = 08:17 China time
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write # publish to GitHub Pages
+  id-token: write # prove the deploy comes from this workflow
+
+# One deploy at a time. A new run waits for the one before it.
+concurrency: { group: pages, cancel-in-progress: false }
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6 # reads the pnpm version from package.json
+      - uses: actions/setup-node@v7
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check # types + frontmatter
+      - run: pnpm test # src/lib
+      - id: pages
+        uses: actions/configure-pages@v6
+      - run: pnpm build
+        env:
+          # "https://<user>.github.io" and "" for a user site, "/<repo>" for a project site.
+          SITE_URL: ${{ steps.pages.outputs.origin }}
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          # The token GitHub makes for this run. It reads your public contributions.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional: a personal token of your own, to count private contributions too.
+          CONTRIBUTIONS_TOKEN: ${{ secrets.CONTRIBUTIONS_TOKEN }}
+      - uses: actions/upload-pages-artifact@v5
+        with: { path: dist }
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

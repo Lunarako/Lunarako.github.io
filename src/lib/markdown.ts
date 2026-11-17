@@ -1,4 +1,4 @@
-import { defaultContent, duolingoLink, projectLink, type SiteContent, siteWith } from "./content";
+import { defaultContent, projectLink, type SiteContent, siteWith } from "./content";
 import type { ContributionYear } from "./contributions";
 import { sampleContributions } from "./site";
 
@@ -11,11 +11,10 @@ export function homeMarkdown(
   return [
     `# ${site.name}`,
     "",
-    `${site.roles[0][0].toUpperCase()}${site.roles[0].slice(1)} in ${site.city}, ${site.country}.`,
+    `${site.roles[0][0].toUpperCase()}${site.roles[0].slice(1)}${site.city ? ` in ${[site.city, site.country].filter(Boolean).join(", ")}` : ""}.`,
     "",
     `- GitHub: ${site.github}`,
-    `- X: ${site.x}`,
-    ...(site.duolingo ? [`- Duolingo: ${duolingoLink(site.duolingo)}`] : []),
+    ...(site.x ? [`- X: ${site.x}`] : []),
     `- Email: ${site.email}`,
     ...(site.booking ? [`- Intro call: ${site.booking}`] : []),
     "",

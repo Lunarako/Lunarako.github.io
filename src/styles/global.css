@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "./iso.css";
 
 /* Palette from the Paper file (Home · v4 rinkit). Dark is the default. */
 :root {
@@ -405,26 +404,8 @@ body {
   animation-delay: calc(var(--intro-wait) + var(--i, 0) * var(--reveal-step));
 }
 
-/* ---------- who: avatar spotlight ---------- */
-
-.avatar {
-  filter: grayscale(100%);
-  opacity: 0.9;
-}
-
-.avatar-spotlight {
-  pointer-events: none;
-  visibility: hidden;
-  mask-image: radial-gradient(
-    circle at var(--spotlight-x, 50%) var(--spotlight-y, 50%),
-    black 12px,
-    transparent 22px
-  );
-}
-
-[data-spotlight] > .avatar-spotlight {
-  visibility: visible;
-}
+/* ---------- who: avatar ---------- */
+/* In full colour. (The original showed it in grey, with colour only in a small circle under the pointer.) */
 
 /* ---------- projects, chips, skills ---------- */
 
