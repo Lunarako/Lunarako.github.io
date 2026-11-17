@@ -1,11 +1,10 @@
 import { useEffect, useRef } from "react";
 import { CANDY, decorations, ghostFrame, HAT_TOP, pumpkinBoxes, summonGhost, WITCH_HAT, type Ghost } from "@/lib/garden/halloween";
-import { burstSound, dropSound, lampSound, petSound, popSound, skySound, yarnSound } from "@/components/garden-sound";
 import { type Cat, newCat, poseOf, rainWalk, step } from "@/lib/garden/meiqiu";
 import { tonightsPhase } from "@/lib/garden/moon";
 import { type Key, PALETTES } from "@/lib/garden/palette";
 import { type Layout, CELL, gridSize, layout, paintStatic, PEAK, windows } from "@/lib/garden/scene";
-import { panAt, petCue, skyCue } from "@/lib/garden/sounds";
+import { skyCue } from "@/lib/garden/clicks";
 import { BUTTERFLY, FEET, HEART, POSES, RAIN_UMBRELLA, type Pixel, type Pose, ZED_BIG, ZED_SMALL } from "@/lib/garden/sprites";
 import { gardenRituals, RITUAL_HEIGHT, RITUAL_WIDTH, ritualArt, ritualFrame, type GardenRitual } from "@/lib/meiqiu-rituals";
 import {
@@ -554,11 +553,8 @@ export function GardenBanner({ theme, still, scene = "clear", windy = false }: {
       const hit = hits(g);
       const { l } = g;
       const w = l.w;
-      const pan = (x: number) => panAt(x, w);
       if (hit.cat && !g.overCat) pet();
       g.overCat = hit.cat;
-      // The lamps click on, unless rain has lit them already.
-      if (hit.house && !g.overHouse && scene !== "rain" && scene !== "storm") lampSound(pan(l.house.x + l.house.w / 2));
       g.overHouse = hit.house;
       l.spots.butterfly = Math.round(w / 2 + Math.sin(g.time * 0.4) * w * 0.3);
 
@@ -613,7 +609,6 @@ export function GardenBanner({ theme, still, scene = "clear", windy = false }: {
         while (g.nextPop !== null && g.time >= g.nextPop) {
           const at = crackerAt(l, g.popped);
           g.puffs.push({ ...at, age: 0, smoke: false }, { ...at, age: 0, smoke: true });
-          popSound(pan(at.x));
           for (let i = 0; i < 3; i++) {
             g.bits.push({ x: at.x + Math.round((Math.random() - 0.5) * 10), y: at.y, rest: l.ground + Math.floor(Math.random() * 3), key: i ? "red" : "redDark" });
           }
@@ -625,16 +620,12 @@ export function GardenBanner({ theme, still, scene = "clear", windy = false }: {
           g.nextLaunch = g.time + 4 + Math.random() * 3;
         }
         for (const t of g.trails) t.y -= dt * 60; // 2 cells a frame
-        for (const t of g.trails.filter((t) => t.y <= t.toY)) {
-          g.fireworks.push({ x: t.x, y: t.toY, born: g.time, color: t.color });
-          if (t.heard) burstSound(pan(t.x));
-        }
+        for (const t of g.trails.filter((t) => t.y <= t.toY)) g.fireworks.push({ x: t.x, y: t.toY, born: g.time, color: t.color });
         g.trails = g.trails.filter((t) => t.y > t.toY);
         g.fireworks = g.fireworks.filter((f) => g!.time - f.born < BURST_FOR);
       }
       g.puffs = g.puffs.map((p) => ({ ...p, age: p.age + dt })).filter((p) => p.age < (p.smoke ? 0.5 : 0.15));
       for (const b of g.bits) if (b.y < b.rest) b.y = Math.min(b.rest, b.y + dt * (b.key === "drop" ? 30 : 14));
-      for (const b of g.bits) if (b.key === "drop" && b.y >= b.rest) dropSound(pan(b.x));
       g.bits = g.bits.filter((b) => b.key !== "drop" || b.y < b.rest);
 
       const y = g.yarn;
@@ -662,7 +653,6 @@ export function GardenBanner({ theme, still, scene = "clear", windy = false }: {
         g.cat = { ...g.cat, mode: "happy", timer: 0.8 };
       }
       g.hearts = [...g.hearts, { x: g.cat.x + 6, y: g.l.ground - (scene === "halloween" ? 31 : 18), age: 0 }].slice(-12);
-      petSound(petCue(scene), panAt(g.cat.x + 8, g.l.w));
     };
     const pumpkin = () => {
       if (!g) return;
@@ -722,23 +712,18 @@ export function GardenBanner({ theme, still, scene = "clear", windy = false }: {
         const to = Math.max(l.spots.minX, Math.min(l.spots.maxX + 10, g.pointer.x - 3));
         g.yarn = { x: g.yarn.x, from: g.yarn.x, to, t: 0 };
         g.pounce = to + 3;
-        yarnSound(panAt(to, l.w));
       } else if (hit.sky) {
         const { x, y } = g.pointer;
         const cue = skyCue(scene, night);
-        const pan = panAt(x, l.w);
         if (cue === "firework") {
-          // The whistle lasts as long as the trail climbs: 60 cells a second.
-          if (launch(x, y, true)) skySound(cue, pan, (l.ground - 2 - Math.round(y)) / 60);
+          launch(x, y, true);
           g.cat = { ...g.cat, mode: "alert", timer: 1, goal: "wander", target: g.cat.x, dir: x > g.cat.x + 8 ? 1 : -1 };
         } else if (cue === "paper") {
           g.bits.push({ x: Math.round(x), y: Math.round(y), rest: l.ground + Math.floor(Math.random() * 3), key: "red" });
-          skySound(cue, pan);
         } else if (cue === "drop") {
           g.bits.push({ x: Math.round(x), y: Math.round(y), rest: l.ground - 2, key: "drop" });
         } else if (cue === "firefly") {
           g.fireflies = [...g.fireflies, { x, y, phase: g.time }].slice(-MAX_FIREFLIES);
-          skySound(cue, pan);
         }
       }
     };

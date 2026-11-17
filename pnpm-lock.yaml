@@ -6,7 +6,6 @@ settings:
 
 patchedDependencies:
   astro@7.4.8: 146adc0b0dd54371909e21a0b5656f10d0e6994d5e33b6ca4535629bd0367345
-  cuelume@0.2.8: 2a1678714c937c0c9808326993bb9d57c955d7108ebe0f93d0bcab8c46750d50
 
 importers:
 
@@ -30,9 +29,6 @@ importers:
       astro:
         specifier: ^7.4.8
         version: 7.4.8(patch_hash=146adc0b0dd54371909e21a0b5656f10d0e6994d5e33b6ca4535629bd0367345)(@types/node@24.19.2)(jiti@2.7.0)(yaml@2.9.1)
-      cuelume:
-        specifier: 0.2.8
-        version: 0.2.8(patch_hash=2a1678714c937c0c9808326993bb9d57c955d7108ebe0f93d0bcab8c46750d50)
       lucide-react:
         specifier: 1.60.0
         version: 1.60.0(@types/react@19.3.0)(react@19.3.0)
@@ -1039,9 +1035,6 @@ packages:
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
-
-  cuelume@0.2.8:
-    resolution: {integrity: sha512-jnwAdMMUK4emaUWRd9l2RjpfixAMFOFrVkjoVK59FIfk7D3Vuvt+vBBJvU/J+2EiXrDlduialwDKJZorS5Nxqg==}
 
   defu@6.1.7:
     resolution: {integrity: sha512-7z22QmUWiQ/2d0KkdYmANbRUVABpZ9SNYyH5vx6PZ+nE5bcC0l7uFvEfHlyld/HcGBFTL536ClDt3DEcSlEJAQ==}
@@ -2991,8 +2984,6 @@ snapshots:
       css-tree: 2.2.0
 
   csstype@3.2.3: {}
-
-  cuelume@0.2.8(patch_hash=2a1678714c937c0c9808326993bb9d57c955d7108ebe0f93d0bcab8c46750d50): {}
 
   defu@6.1.7: {}
 

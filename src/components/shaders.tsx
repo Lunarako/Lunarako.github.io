@@ -33,7 +33,7 @@ function getSnapshot() {
 }
 const getServerSnapshot = () => null;
 
-function useShaderMood() {
+export function useShaderMood() {
   const mood = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   if (!mood) return null;
   const theme = mood.startsWith("light") ? "light" : "dark";
@@ -111,7 +111,6 @@ export function BannerShader({ scene: saved = "clear", place }: { scene?: SceneN
         title="For testing: try another banner theme. A reload follows the weather again."
         // data-live: the label follows the weather, so the layout screenshot masks it.
         data-live
-        data-cuelume-select
         // Centred on the soil under the grass line, by the capitals, at every banner size.
         className="press absolute top-[calc(100%*192/220)] bottom-0 left-[7px] flex items-center text-[11px] leading-[14px] tracking-[0.08em] text-dim hover:text-body max-sm:left-[3px] max-sm:text-[9px] max-sm:leading-[10px] max-sm:tracking-[0.06em]"
         onClick={() => setPicked(nextScene(scene))}

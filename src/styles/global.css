@@ -175,7 +175,7 @@ html[data-intro="play"] {
 }
 /* Two fixed layers over the page, so the circle sits in the middle of the screen, not of the whole page.
    ::before is the ground outside the circle; ::after is the veil inside it. They catch the mouse until the
-   intro is done, so nothing under the veil opens. A click on them still rings the first-click sound. */
+   intro is done, so nothing under the veil opens. */
 html[data-intro="play"] body::before,
 html[data-intro="play"] body::after {
   content: "";
@@ -463,16 +463,6 @@ body {
   2.8% {
     opacity: 1;
   }
-}
-
-/* ---------- sound switch: the icon follows html[data-sound], set before first paint ---------- */
-
-.sound-toggle .sound-off,
-:root[data-sound="off"] .sound-toggle .sound-on {
-  display: none;
-}
-:root[data-sound="off"] .sound-toggle .sound-off {
-  display: block;
 }
 
 /* ---------- hover, only where hover exists ---------- */

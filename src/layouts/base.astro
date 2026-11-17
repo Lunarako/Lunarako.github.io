@@ -1,7 +1,6 @@
 ---
 import { Font } from "astro:assets";
 import { BackgroundShader } from "@/components/shaders";
-import Sound from "@/components/sound.astro";
 import { FESTIVALS, festivalTable, shanghaiDate } from "@/lib/festivals";
 import "@/styles/global.css";
 
@@ -24,8 +23,6 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, "/");
 // Runs before first paint so a saved light theme never flashes dark.
 const themeScript = `try{if(localStorage.getItem("theme")==="light")document.documentElement.dataset.theme="light"}catch(e){}`;
 
-// The same for sound: a muted page never shows the speaker icon, and cuelume starts muted.
-const soundScript = `try{if(localStorage.getItem("sound")==="off")document.documentElement.dataset.sound="off"}catch(e){}`;
 
 // The intro plays on the first load in a tab, unless the reader asks for less motion. It is set before first paint,
 // so the full page never flashes first. "done" comes when the veil's animation ends, or after 3s if it never runs.
@@ -60,13 +57,11 @@ const festivalScript = `try{var t=${JSON.stringify(festivals)},ids=${JSON.string
     <Font cssVariable="--font-paper-mono" preload />
     <Font cssVariable="--font-inter" preload />
     <script is:inline set:html={themeScript} />
-    <script is:inline set:html={soundScript} />
     <script is:inline set:html={introScript} />
     <script is:inline set:html={festivalScript} />
   </head>
   <body>
     <BackgroundShader client:only="react" />
     <slot />
-    <Sound />
   </body>
 </html>
