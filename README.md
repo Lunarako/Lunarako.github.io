@@ -15,9 +15,6 @@ with a database. This edition builds to plain HTML, so GitHub Pages can host it 
 
 - **A banner that changes.** The pixel garden follows the phase of the moon, the Chinese festivals and, if you set a
   city, its live weather. The dark theme shows the night garden, the light theme the day garden.
-- **The moon on the sides.** On a wide screen, tonight's pixel moon fills the left side and this lunar month the
-  right side, one small moon a day. Point at a day to see its moon on the left. The lunar calendar is built at
-  deploy time; the phase comes from the mean lunar month, so the lit share is shown with "≈".
 - **A cat.** Meiqiu walks in the garden and in the footer. Hover or tap to pet it.
 - **Your GitHub data.** The avatar and the contribution calendar come from your GitHub account.
 - **Agent-friendly.** `/index.md` gives the home page as Markdown.

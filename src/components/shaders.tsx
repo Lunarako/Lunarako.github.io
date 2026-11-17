@@ -33,7 +33,7 @@ function getSnapshot() {
 }
 const getServerSnapshot = () => null;
 
-export function useShaderMood() {
+function useShaderMood() {
   const mood = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   if (!mood) return null;
   const theme = mood.startsWith("light") ? "light" : "dark";
